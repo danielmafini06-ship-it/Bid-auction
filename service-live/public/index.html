@@ -16,10 +16,12 @@
     <div class="painel">
         <h2>Lote 01: Epiphone SG Special</h2>
         <p id="status">Aguardando lances...</p>
-        <h1 id="valor_atual">R$ 1500.00</h1>
+        <h1 id="valor_atual">R$ 1.500,00</h1>
         
         <input type="number" id="valor_lance" placeholder="Digite o valor" value="1550">
         <button onclick="darLance()">Enviar Lance Livre</button>
+        
+        <button onclick="encerrarLeilao()" style="background: #d9534f; margin-top: 10px;">Encerrar Leilão (Admin)</button>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
@@ -49,6 +51,25 @@
                 status.style.color = "red";
             } else {
                 status.style.color = "green";
+            }
+        });
+
+        function encerrarLeilao() {
+            socket.emit('encerrar_leilao');
+        }
+
+        socket.on('leilao_finalizado', (dados) => {
+            document.getElementById('valor_atual').innerText = dados.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            
+            const status = document.getElementById('status');
+            status.innerText = dados.mensagem;
+            status.style.color = "purple";
+
+            // Desativa os botões e o input para ninguém dar mais lances
+            document.getElementById('valor_lance').disabled = true;
+            const botoes = document.getElementsByTagName('button');
+            for(let i = 0; i < botoes.length; i++) {
+                botoes[i].disabled = true;
             }
         });
     </script>
