@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BidAuction | Sala de Leilão</title>
+    
+    <!-- Fontes Premium -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Roboto+Mono:wght@700&display=swap" rel="stylesheet">
+    
+    <!-- Folha de Estilos -->
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Socket.IO -->
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <!-- Cabeçalho Principal -->
+    <header class="navbar">
+        <div class="logo">
+            <span class="logo-icon">⚖️</span>
+            <span class="logo-text">Bid<span class="gold-text">Auction</span></span>
+        </div>
+        <nav class="nav-links">
+            <a href="index.html" class="active">Lotes Ativos</a>
+            <a href="index.html#meu-catalogo">Catálogo</a>
+            <a href="#" class="btn-outline-gold" id="btn_conta" onclick="gerenciarConta()">Minha Conta</a>
+        </nav>
+    </header>
+
+    <!-- Conteúdo Principal -->
+    <main class="hero-section">
+        
+        <!-- Coluna Esquerda: Detalhes do Produto Dinâmico -->
+        <section class="item-details">
+            <div class="badge" id="lote_badge">A carregar...</div>
+            <h1 id="lote_titulo">A carregar...</h1>
+            <p class="subtitle" id="lote_subtitulo">A carregar...</p>
+            
+            <!-- Galeria de 3 Fotos e Botão de Zoom -->
+            <div class="gallery-wrapper">
+                <div class="lote-gallery" id="lote_galeria">
+                    <!-- Imagens serão injetadas aqui via JavaScript -->
+                </div>
+                <button class="btn-zoom" onclick="abrirLightbox()">
+                    🔍 Ver Imagem em Alta Resolução
+                </button>
+            </div>
+            
+            <div class="description-box">
+                <p id="lote_desc">...</p>
+                <ul class="specs" id="lote_specs">
+                    <!-- Especificações serão injetadas aqui -->
+                </ul>
+            </div>
+        </section>
+
+        <!-- Coluna Direita: Painel de WebSockets -->
+        <section class="auction-panel">
+            <div class="panel-header">
+                <h2>Painel de Lances</h2>
+                <div id="status" class="status-indicator">
+                    <span class="pulse"></span> AO VIVO
+                </div>
+            </div>
+
+            <!-- Preço Atual com Balão Dourado (Tooltip) -->
+            <div class="price-display" id="container_preco" data-tooltip="R$ 0,00">
+                <span class="currency">R$</span>
+                <span id="valor_atual">0,00</span>
+            </div>
+
+            <div class="bidding-controls">
+                <div class="input-wrapper">
+                    <span class="input-prefix">R$</span>
+                    <input type="number" id="input_lance" placeholder="Insira o seu lance..." step="100">
+                </div>
+                <button class="btn-gold" id="btn_lance" onclick="enviarLance()">Confirmar Lance</button>
+            </div>
+
+            <div class="admin-section">
+                <div class="divider">
+                    <span>Área do Leiloeiro (Restrito)</span>
+                </div>
+                <button class="btn-danger" id="btn_encerrar" onclick="encerrarLeilao()">
+                    <span class="lock-icon">🔒</span> Encerrar Lote
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal de Imagem em Alta Resolução (Lightbox) -->
+    <div class="lightbox" id="lightbox_modal" onclick="fecharLightbox(event)">
+        <span class="lightbox-close" onclick="fecharLightbox(event)">&times;</span>
+        <img src="" id="lightbox_img" class="lightbox-content" onclick="toggleZoom(event)">
+        <div class="lightbox-hint">Clique na imagem para dar zoom</div>
+    </div>
+
+    <!-- Modal de Identificação Customizado -->
+    <div class="custom-modal" id="modal_login">
+        <div class="modal-box">
+            <h3>Identificação</h3>
+            <p>Insira o seu nome para participar nos leilões.</p>
+            <input type="text" id="input_nome_usuario" class="modal-input" placeholder="O seu nome..." autocomplete="off">
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="fecharModalLogin()">Cancelar</button>
+                <button class="btn-confirm" onclick="confirmarLogin()">Entrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notificação Toast Inteligente -->
+    <div id="toast_alerta" class="toast-alerta">
+        <span id="toast_icone" class="toast-icone">⚠️</span>
+        <span id="toast_texto">Sua mensagem aqui</span>
+    </div>
+
+    <!-- Lógica de Hidratação de Tela e WebSockets -->
+    <script>
+        // 1. HIDRATAÇÃO DINÂMICA DA TELA
+        const urlParams = new URLSearchParams(window.location.search);
+        const loteId = urlParams.get('id') || '1';
+
+        const bancoLotes = {
+            '1': {
+                badge: 'Lote 01 • Ícone do Rock',
+                titulo: 'EVH "Frankie" Stratocaster',
+                subtitulo: 'A Lendária Guitarra de Eddie Van Halen • Heavy Relic',
+                desc: 'Uma das guitarras mais famosas da história do rock. Corpo com a inconfundível pintura listrada em vermelho, branco e preto, marcas de uso extremas (relic) fielmente detalhadas, um humbucker montado direto na madeira e o clássico sistema Floyd Rose.',
+                specs: ['Acabamento: Heavy Relic (Listras Icônicas)', 'Captação: 1x EVH Humbucker', 'Ponte: Floyd Rose com EVH D-Tuna'],
+                imagens: ['img/Frankie-Back.png', 'img/Frankie-Bridge.png', 'img/Frankie-Hand.png'],
+                imagem_alta: 'img/Frankie-Full.png'
+            },
+            '2': {
+                badge: 'Lote 02 • Premium',
+                titulo: 'Fender Stratocaster',
+                subtitulo: 'Olympic White • Standard Series',
+                desc: 'Um ícone absoluto. Timbre cristalino perfeito para ritmos dinâmicos. Corpo impecável e braço super confortável para longas sessões de estúdio.',
+                specs: ['Condição: Excelente', 'Captação: 3x Single-Coil Alnico', 'Origem: Envio com Case Rígido'],
+                imagens: ['img/Strat-Back.png', 'img/Strat-Bridge.png', 'img/Strat-Hand.png'],
+                imagem_alta: 'img/Strat-Full.png'
+            },
+            '3': {
+                badge: 'Lote 03 • Clássico Nacional',
+                titulo: 'Chevrolet Opala 1978',
+                subtitulo: 'Coupe 6 Cilindros 4.1L • Tração Traseira',
+                desc: 'Um dos carros mais reverenciados do Brasil. Esta unidade conta com a cobiçada mecânica 6 cilindros e estrutura excelente. Uma tela em branco formidável para restauração minuciosa ou para instalar aquele escape customizado com difusor eletrônico e deixar o ronco do motor 250 falar mais alto.',
+                specs: ['Condição: Projeto de Restauração', 'Motorização: 4.1L (250 pol³)', 'Câmbio: Manual 4 marchas'],
+                imagens: ['img/Opala-Back.jpg', 'img/Opala-In.jpg', 'img/Opala-Engine.jpg'],
+                imagem_alta: 'img/Opala-Full.png'
+            },
+            '4': {
+                badge: 'Lote 04 • Projeto',
+                titulo: 'Chevrolet Vectra B',
+                subtitulo: 'Motor 2.2 16v • Relíquia Anos 90',
+                desc: 'Oportunidade para entusiastas automotivos. Estrutura alinhada e motor potente, ideal para restauração completa ou projeto de final de semana.',
+                specs: ['Condição: Projeto (Requer reparos)', 'Câmbio: Manual', 'Doc: Pronta para transferência'],
+                imagens: ['img/Vectra-Back.png', 'img/Vectra-In.png', 'img/Vectra-Engine.png'],
+                imagem_alta: 'img/Vectra-Full.png'
+            }
+        };
+
+        const loteData = bancoLotes[loteId] || bancoLotes['1'];
+        
+        // Injeta os Textos
+        document.getElementById('lote_badge').innerText = loteData.badge;
+        document.getElementById('lote_titulo').innerText = loteData.titulo;
+        document.getElementById('lote_subtitulo').innerText = loteData.subtitulo;
+        document.getElementById('lote_desc').innerText = loteData.desc;
+        
+        // Injeta as Especificações
+        document.getElementById('lote_specs').innerHTML = loteData.specs.map(spec => {
+            const partes = spec.split(':');
+            return `<li><span class="spec-label">${partes[0]}:</span>${partes[1]}</li>`;
+        }).join('');
+
+        // Injeta a Galeria de Imagens com Fallback
+        document.getElementById('lote_galeria').innerHTML = loteData.imagens.map((imgUrl, index) => 
+            `<img src="${imgUrl}" class="gallery-img" alt="Foto ${index + 1}" onerror="this.src='https://via.placeholder.com/400x400/1e1e1e/d4af37?text=Foto+${index + 1}'">`
+        ).join('');
+
+
+        // 2. LÓGICA DO LIGHTBOX (ZOOM)
+        function abrirLightbox() {
+            const modal = document.getElementById('lightbox_modal');
+            const img = document.getElementById('lightbox_img');
+            // Traz a imagem de alta qualidade
+            img.src = loteData.imagem_alta || loteData.imagens[0];
+            modal.classList.add('active');
+        }
+
+        function fecharLightbox(e) {
+            // Fecha o modal ao clicar no fundo escuro ou no botão (X)
+            if (e.target.id === 'lightbox_modal' || e.target.className === 'lightbox-close') {
+                const modal = document.getElementById('lightbox_modal');
+                const img = document.getElementById('lightbox_img');
+                modal.classList.remove('active');
+                img.classList.remove('zoomed'); // Remove o zoom ao fechar
+            }
+        }
+
+        function toggleZoom(e) {
+            e.stopPropagation(); // Evita que o clique feche o modal
+            const img = document.getElementById('lightbox_img');
+            img.classList.toggle('zoomed'); // Alterna entre zoom in e zoom out
+        }
+
+
+        // 3. LÓGICA DO WEBSOCKET
+        const socket = io(); 
+        const valorAtualEl = document.getElementById('valor_atual');
+        const containerPreco = document.getElementById('container_preco');
+        const inputLance = document.getElementById('input_lance');
+        const statusEl = document.getElementById('status');
+        const btnLance = document.getElementById('btn_lance');
+        const btnEncerrar = document.getElementById('btn_encerrar');
+
+        // Entra na sala específica deste lote assim que conecta
+        socket.on('connect', () => {
+            socket.emit('entrar_sala', loteId);
+        });
+
+        // Função Dinâmica de Notificações
+        function mostrarAlerta(mensagem) {
+            const toast = document.getElementById('toast_alerta');
+            const toastTexto = document.getElementById('toast_texto');
+            const toastIcone = document.getElementById('toast_icone');
+            
+            toast.classList.remove('erro', 'aviso', 'sucesso', 'finalizado');
+            
+            if (mensagem.includes("valor mínimo")) { 
+                toast.classList.add('erro'); 
+                toastIcone.innerText = '❌'; 
+            } 
+            else if (mensagem.includes("mais rápido")) { 
+                toast.classList.add('aviso'); 
+                toastIcone.innerText = '⚠️'; 
+            }
+            else if (mensagem.includes("vencedor")) { 
+                toast.classList.add('sucesso'); 
+                toastIcone.innerText = '✅'; 
+            }
+            else if (mensagem.includes("ENCERRADO")) { 
+                toast.classList.add('finalizado'); 
+                toastIcone.innerText = '🔨'; 
+            }
+            else { 
+                toastIcone.innerText = '🔔'; 
+            }
+            
+            toastTexto.innerText = mensagem;
+            toast.classList.add('mostrar');
+            
+            setTimeout(() => { 
+                toast.classList.remove('mostrar'); 
+            }, 4000);
+        }
+
+        function formatarMoeda(valor) {
+            return parseFloat(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        // Recebe lances
+        socket.on('atualizar_painel', (dados) => {
+            const valorFormatado = formatarMoeda(dados.valor);
+            valorAtualEl.innerText = valorFormatado;
+            
+            if(containerPreco) {
+                containerPreco.setAttribute('data-tooltip', 'R$ ' + valorFormatado);
+            }
+            
+            if (dados.mensagem) {
+                mostrarAlerta(dados.mensagem);
+            }
+        });
+
+        // Recebe encerramento
+        socket.on('leilao_finalizado', (dados) => {
+            const valorFormatado = formatarMoeda(dados.valor);
+            valorAtualEl.innerText = valorFormatado;
+            
+            if(containerPreco) {
+                containerPreco.setAttribute('data-tooltip', 'R$ ' + valorFormatado);
+            }
+            
+            statusEl.innerHTML = dados.mensagem; 
+            statusEl.className = 'status-indicator encerrado';
+            
+            inputLance.disabled = true; 
+            btnLance.disabled = true; 
+            btnEncerrar.disabled = true;
+            
+            mostrarAlerta(dados.mensagem);
+        });
+
+        // Dispara lance com identificação
+        function enviarLance() {
+            const usuario = localStorage.getItem('bidauction_user');
+            
+            if (!usuario) { 
+                mostrarAlerta('Tem de se identificar em "Minha Conta" antes de dar um lance!'); 
+                return; 
+            }
+
+            const valor = parseFloat(inputLance.value);
+            if (!valor || isNaN(valor)) { 
+                mostrarAlerta('Por favor, insira um valor numérico válido.'); 
+                return; 
+            }
+            
+            // Agora enviamos também o nome do utilizador para o servidor
+            socket.emit('enviar_lance', { loteId: loteId, valor: valor, usuario: usuario });
+            inputLance.value = '';
+        }
+
+        // Dispara encerramento
+        function encerrarLeilao() {
+            if(confirm('Tem a certeza absoluta de que deseja encerrar este lote?')) {
+                socket.emit('encerrar_leilao', loteId);
+            }
+        }
+        // LÓGICA DE IDENTIFICAÇÃO (LocalStorage)
+        function atualizarBotaoConta() {
+            const btn = document.getElementById('btn_conta');
+            const usuario = localStorage.getItem('bidauction_user');
+            if (btn) {
+                if (usuario) {
+                    btn.innerText = `👤 ${usuario}`;
+                } else {
+                    btn.innerText = "Minha Conta";
+                }
+            }
+        }
+
+        // Abre o modal bonito em vez do prompt do navegador
+        // Abre o modal de entrada ou de saída dependendo do estado
+        function gerenciarConta() {
+            const usuario = localStorage.getItem('bidauction_user');
+            if (!usuario) {
+                const modal = document.getElementById('modal_login');
+                const input = document.getElementById('input_nome_usuario');
+                modal.classList.add('active');
+                input.value = ''; 
+                setTimeout(() => input.focus(), 100);
+            } else {
+                // Abre o modal de Logout bonito
+                const modalLogout = document.getElementById('modal_logout');
+                const textoLogout = document.getElementById('texto_logout_modal');
+                if (textoLogout) {
+                    textoLogout.innerText = `Sessão iniciada como ${usuario}. Deseja sair?`;
+                }
+                modalLogout.classList.add('active');
+            }
+        }
+
+        // Fecha o modal
+        function fecharModalLogin() {
+            document.getElementById('modal_login').classList.remove('active');
+        }
+
+        // Guarda o nome e avisa o sistema
+        function confirmarLogin() {
+            const input = document.getElementById('input_nome_usuario');
+            const usuario = input.value.trim();
+            
+            if (usuario !== "") {
+                localStorage.setItem('bidauction_user', usuario);
+                atualizarBotaoConta();
+                fecharModalLogin();
+                
+                if(typeof mostrarAlerta === "function") {
+                    mostrarAlerta(`Bem-vindo(a), ${usuario}! Já pode dar lances.`);
+                }
+            } else {
+                // Pisca a borda a vermelho se tentar enviar vazio
+                input.style.borderColor = 'var(--danger)';
+                setTimeout(() => input.style.borderColor = 'var(--gold-primary)', 1500);
+            }
+        }
+
+        // Permite usar a tecla "Enter" para confirmar rapidamente
+        document.addEventListener('DOMContentLoaded', () => {
+            const inputNome = document.getElementById('input_nome_usuario');
+            if(inputNome) {
+                inputNome.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') confirmarLogin();
+                });
+            }
+            atualizarBotaoConta();
+        });
+
+        // ==========================================
+        // FUNÇÕES DO MODAL DE LOGOUT
+        // ==========================================
+        function fecharModalLogout() {
+            const modal = document.getElementById('modal_logout');
+            if (modal) modal.classList.remove('active');
+        }
+
+        function confirmarLogout() {
+            localStorage.removeItem('bidauction_user');
+            atualizarBotaoConta();
+            fecharModalLogout();
+            
+            if(typeof mostrarAlerta === "function") {
+                mostrarAlerta("Sessão encerrada com sucesso.");
+            }
+        }
+    </script>
+</body>
+</html>
