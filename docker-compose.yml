@@ -32,5 +32,17 @@ services:
       - "5672:5672"
       - "15672:15672"
 
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: bidauction_pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@bidauction.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+
 volumes:
   pgdata:
