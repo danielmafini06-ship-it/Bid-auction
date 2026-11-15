@@ -36,7 +36,7 @@ connectRabbitMQ();
 
         // 2. Processa lances apenas para aquela sala específica
         socket.on('enviar_lance', async (dados) => {
-            const { loteId, valor } = dados;
+            const { loteId, valor, usuario = 'Anónimo' } = dados;
             const inicial = lotesConfig[loteId] ? lotesConfig[loteId].inicial : 1500.00;
             
             const lanceAtualStr = await redisClient.get(`maior_lance_lote_${loteId}`);
