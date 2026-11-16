@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, Image, Alert } from 'react-native';
 import { io } from 'socket.io-client';
@@ -25,12 +26,15 @@ export default function Index() {
 
     // NOVO: Escuta o evento de finalização que o seu backend emite
     novaConexao.on('leilao_finalizado', (dados) => {
+      // NOVO: Vibração forte de sucesso ao encerrar
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
       Alert.alert(
         "Martelo Batido! 🔨", 
         `O leilão foi encerrado!\nValor: R$ ${dados.valor}\n${dados.mensagem}`,
         [{ text: "OK" }]
       );
-      setPrecoAtual(0); // Reinicia o preço no ecrã para o próximo leilão
+      setPrecoAtual(0);
     });
 
     novaConexao.on('disconnect', () => {
@@ -53,6 +57,9 @@ export default function Index() {
       });
       
       setPrecoAtual(novoPreco);
+      
+      // NOVO: Vibração leve a cada lance
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   };
 
