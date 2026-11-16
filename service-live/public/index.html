@@ -8,6 +8,9 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- ==========================================
+         CABEÇALHO DA PLATAFORMA
+         ========================================== -->
     <header class="navbar">
         <div class="logo">
             <span class="logo-icon">⚖️</span>
@@ -24,7 +27,9 @@
         <h1>Lotes em <span class="gold-text">Destaque</span></h1>
     </div>
 
-    <!-- ID ADICIONADO PARA O SCROLL FUNCIONAR -->
+    <!-- ==========================================
+         SEÇÃO: LOTES ATIVOS (MOCK DO API GATEWAY)
+         ========================================== -->
     <section id="lotes-ativos" class="catalog-grid">
         
         <!-- Cartão Lote 1: Frankie -->
@@ -40,9 +45,9 @@
             <a href="leilao.html?id=1" class="btn-gold" style="text-align: center; text-decoration: none; display: block;">Entrar no Leilão</a>
         </div>
 
+        <!-- Cartão Lote 2: Stratocaster -->
         <div class="lot-card">
             <div>
-                <!-- IMAGEM AQUI -->
                 <div class="lot-image">
                     <img src="img/Strat.png" onerror="this.src='https://via.placeholder.com/400x300/1e1e1e/d4af37?text=Fender+Strat'">
                 </div>
@@ -53,6 +58,7 @@
             <a href="leilao.html?id=2" class="btn-gold" style="text-align: center; text-decoration: none; display: block;">Entrar no Leilão</a>
         </div>
 
+        <!-- Cartão Lote 3: Opala -->
         <div class="lot-card">
             <div>
                 <div class="lot-image">
@@ -65,9 +71,9 @@
             <a href="leilao.html?id=3" class="btn-gold" style="text-align: center; text-decoration: none; display: block;">Entrar no Leilão</a>
         </div>
 
+        <!-- Cartão Lote 4: Vectra B (Lote Principal da Demonstração) -->
         <div class="lot-card">
             <div>
-                <!-- IMAGEM AQUI -->
                 <div class="lot-image">
                     <img src="img/Vectra.png" onerror="this.src='https://via.placeholder.com/400x300/1e1e1e/d4af37?text=Chevrolet+Vectra'">
                 </div>
@@ -78,8 +84,9 @@
             <a href="leilao.html?id=4" class="btn-gold" style="text-align: center; text-decoration: none; display: block;">Entrar no Leilão</a>
         </div>
     </section>
+
     <!-- ==========================================
-         CATÁLOGO FUTURO (PRÓXIMOS LEILÕES)
+         SEÇÃO: CATÁLOGO FUTURO
          ========================================== -->
     <div class="catalog-header" style="margin-top: 5rem;">
         <h1>Catálogo <span class="gold-text">Futuro</span></h1>
@@ -116,7 +123,9 @@
 
     </section>
 
-    <!-- Modal de Identificação Customizado -->
+    <!-- ==========================================
+         MODAIS DE GESTÃO DE SESSÃO
+         ========================================== -->
     <div class="custom-modal" id="modal_login">
         <div class="modal-box">
             <h3>Identificação</h3>
@@ -129,7 +138,6 @@
         </div>
     </div>
 
-    <!-- Modal de Confirmação de Saída (Logout) -->
     <div class="custom-modal" id="modal_logout">
         <div class="modal-box">
             <h3>Sair da Conta</h3>
@@ -147,30 +155,24 @@
         <span id="toast_texto">Mensagem aqui</span>
     </div>
 
-    <!-- Script do Catálogo -->
+    <!-- ==========================================
+         SCRIPTS: LÓGICA DE INTERFACE
+         ========================================== -->
     <script>
         function mostrarLembrete(mensagem) {
             const toast = document.getElementById('toast_alerta');
             const toastTexto = document.getElementById('toast_texto');
             const toastIcone = document.getElementById('toast_icone');
             
-            // Define o ícone e a cor de sucesso (verde)
             toast.classList.remove('erro', 'aviso', 'finalizado');
             toast.classList.add('sucesso'); 
             toastIcone.innerText = '🔔';
-            
             toastTexto.innerText = mensagem;
             toast.classList.add('mostrar');
             
-            // Esconde após 4 segundos
-            setTimeout(() => { 
-                toast.classList.remove('mostrar'); 
-            }, 4000);
+            setTimeout(() => { toast.classList.remove('mostrar'); }, 4000);
         }
 
-        // ==========================================
-        // LÓGICA DE IDENTIFICAÇÃO PREMIUM
-        // ==========================================
         function atualizarBotaoConta() {
             const btn = document.getElementById('btn_conta');
             const usuario = localStorage.getItem('bidauction_user');
@@ -183,7 +185,6 @@
             }
         }
 
-        // Abre o modal de entrada ou de saída dependendo do estado
         function gerenciarConta() {
             const usuario = localStorage.getItem('bidauction_user');
             if (!usuario) {
@@ -195,7 +196,6 @@
                     setTimeout(() => input.focus(), 100);
                 }
             } else {
-                // Abre o modal de Logout bonito
                 const modalLogout = document.getElementById('modal_logout');
                 const textoLogout = document.getElementById('texto_logout_modal');
                 if (modalLogout && textoLogout) {
@@ -205,9 +205,6 @@
             }
         }
 
-        // ==========================================
-        // FUNÇÕES DO MODAL DE LOGIN
-        // ==========================================
         function fecharModalLogin() {
             const modal = document.getElementById('modal_login');
             if (modal) modal.classList.remove('active');
@@ -222,20 +219,13 @@
                 localStorage.setItem('bidauction_user', usuario);
                 atualizarBotaoConta();
                 fecharModalLogin();
-                
-                // Usa a notificação toast verde que já existe no index.html (mostrarLembrete)
-                if(typeof mostrarLembrete === "function") {
-                    mostrarLembrete(`Bem-vindo(a), ${usuario}!`);
-                }
+                mostrarLembrete(`Bem-vindo(a), ${usuario}!`);
             } else {
                 input.style.borderColor = 'var(--danger)';
                 setTimeout(() => input.style.borderColor = 'var(--gold-primary)', 1500);
             }
         }
 
-        // ==========================================
-        // FUNÇÕES DO MODAL DE LOGOUT
-        // ==========================================
         function fecharModalLogout() {
             const modal = document.getElementById('modal_logout');
             if (modal) modal.classList.remove('active');
@@ -245,13 +235,9 @@
             localStorage.removeItem('bidauction_user');
             atualizarBotaoConta();
             fecharModalLogout();
-            
-            if(typeof mostrarLembrete === "function") {
-                mostrarLembrete("Sessão encerrada com sucesso.");
-            }
+            mostrarLembrete("Sessão encerrada com sucesso.");
         }
 
-        // Configuração inicial quando a página carrega
         document.addEventListener('DOMContentLoaded', () => {
             const inputNome = document.getElementById('input_nome_usuario');
             if(inputNome) {

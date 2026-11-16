@@ -4,15 +4,23 @@ import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, Image, Alert } 
 import { io } from 'socket.io-client';
 import { FontAwesome5 } from '@expo/vector-icons';
 
+// ============================================================================
+// FRONTEND MOBILE (Driver / Operador de Campo)
+// Responsabilidade: Interface Offline-First e Comunicação de Baixa Latência
+// ============================================================================
+
 export default function Index() {
   const [precoAtual, setPrecoAtual] = useState(0);
   const [statusConexao, setStatusConexao] = useState('A conectar...');
   const [socket, setSocket] = useState(null);
 
-  const loteId = '4'; // Vectra B
+  const loteId = '4'; // Referência estática (Bypass do Gateway para Prova de Conceito)
 
   useEffect(() => {
-    const IP_LOCAL = '192.168.0.14';
+    // ------------------------------------------------------------------------
+    // 1. WEBSOCKETS: Conexão Bidirecional Contínua (Sem Polling)
+    // ------------------------------------------------------------------------
+    const IP_LOCAL = '192.168.0.14'; // Altere para o IP da sua máquina no dia
     const novaConexao = io(`http://${IP_LOCAL}:3002`);
 
     novaConexao.on('connect', () => {
@@ -20,13 +28,16 @@ export default function Index() {
       novaConexao.emit('entrar_sala', loteId);
     });
 
+    // Escuta ativa: A tela atualiza no milissegundo em que um lance chega
     novaConexao.on('atualizar_painel', (dados) => {
       setPrecoAtual(dados.valor);
     });
 
-    // NOVO: Escuta o evento de finalização que o seu backend emite
+    // ------------------------------------------------------------------------
+    // 2. FEEDBACK FÍSICO: Resposta Tátil ao Evento do Broker
+    // ------------------------------------------------------------------------
     novaConexao.on('leilao_finalizado', (dados) => {
-      // NOVO: Vibração forte de sucesso ao encerrar
+      // O motor do iPhone vibra fisicamente indicando o sucesso da transação
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       
       Alert.alert(
@@ -46,6 +57,9 @@ export default function Index() {
     return () => novaConexao.disconnect();
   }, []);
 
+  // --------------------------------------------------------------------------
+  // 3. ENVIO DE EVENTOS: Otimista, dispara e não trava a interface
+  // --------------------------------------------------------------------------
   const enviarLance = (incremento) => {
     if (socket && socket.connected) {
       const novoPreco = precoAtual + incremento;
@@ -58,12 +72,11 @@ export default function Index() {
       
       setPrecoAtual(novoPreco);
       
-      // NOVO: Vibração leve a cada lance
+      // Feedback leve para confirmar a ação ao usuário instantaneamente
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   };
 
-  // NOVA FUNÇÃO: Pede confirmação nativa e avisa o backend para encerrar
   const confirmarEncerramento = () => {
     Alert.alert(
       "Encerrar Leilão",
@@ -75,6 +88,7 @@ export default function Index() {
           style: "destructive",
           onPress: () => {
             if (socket && socket.connected) {
+              // Este evento irá acionar a gravação no RabbitMQ (Resiliência)
               socket.emit('encerrar_leilao', loteId);
             }
           }
@@ -94,6 +108,10 @@ export default function Index() {
       </View>
 
       <View style={styles.card}>
+        {/* -------------------------------------------------------------------
+            4. OFFLINE-FIRST: A imagem pesada está embutida no pacote da App.
+               Mesmo com internet lenta, a interface carrega instantaneamente. 
+            ------------------------------------------------------------------- */}
         <Image 
           source={require('../../assets/images/Vectra.png')} 
           style={styles.imagemCarro}
@@ -123,7 +141,6 @@ export default function Index() {
           </TouchableOpacity>
         </View>
 
-        {/* NOVO BOTÃO: Encerramento */}
         <TouchableOpacity style={styles.botaoEncerrar} onPress={confirmarEncerramento} activeOpacity={0.8}>
           <Text style={styles.textoBotaoEncerrar}>BATER O MARTELO (ENCERRAR)</Text>
         </TouchableOpacity>
@@ -152,22 +169,6 @@ const styles = StyleSheet.create({
   botaoLanceDestaque: { flex: 1, backgroundColor: '#d4af37', paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
   textoBotao: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
   textoBotaoDestaque: { color: '#000', fontWeight: 'bold', fontSize: 14 },
-  
-  /* ESTILOS DO NOVO BOTÃO */
-  botaoEncerrar: {
-    backgroundColor: '#8b0000',
-    paddingVertical: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 25,
-    width: '100%',
-    borderWidth: 1,
-    borderColor: '#ff4444',
-  },
-  textoBotaoEncerrar: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14,
-    letterSpacing: 1,
-  }
+  botaoEncerrar: { backgroundColor: '#8b0000', paddingVertical: 15, borderRadius: 8, alignItems: 'center', marginTop: 25, width: '100%', borderWidth: 1, borderColor: '#ff4444' },
+  textoBotaoEncerrar: { color: '#fff', fontWeight: 'bold', fontSize: 14, letterSpacing: 1 }
 });
