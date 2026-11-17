@@ -182,7 +182,7 @@
         // --------------------------------------------------------------------
         // B. COMUNICAÇÃO BIDIRECIONAL (Critério: Tempo Real / WebSockets)
         // --------------------------------------------------------------------
-        const socket = io(); 
+        const socket = io('http://localhost:8080'); 
         const valorAtualEl = document.getElementById('valor_atual');
         const containerPreco = document.getElementById('container_preco');
         const inputLance = document.getElementById('input_lance');

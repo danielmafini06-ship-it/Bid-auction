@@ -21,7 +21,7 @@ export default function Index() {
     // 1. WEBSOCKETS: Conexão Bidirecional Contínua (Sem Polling)
     // ------------------------------------------------------------------------
     const IP_LOCAL = '192.168.0.14'; // Altere para o IP da sua máquina no dia
-    const novaConexao = io(`http://${IP_LOCAL}:3002`);
+    const novaConexao = io('http://${IP_LOCAL}:8080');
 
     novaConexao.on('connect', () => {
       setStatusConexao('🟢 Conectado');
